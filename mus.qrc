@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/sounds">
+        <file>080884_bullet-hit-39872.mp3</file>
+        <file>bgroundsound.mp3</file>
+    </qresource>
+    <qresource prefix="/images">
+        <file>bala.png</file>
+        <file>enemigo2.png</file>
+        <file>fondo.jpg</file>
+        <file>jugador.png</file>
+        <file>spites.png</file>
+    </qresource>
+</RCC>
