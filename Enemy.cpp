@@ -9,6 +9,7 @@
 #include <time.h>
 #include <QGraphicsScene>
 #include <QPixmap>
+#include <QMessageBox>
 
 extern Game *game;
 
@@ -23,7 +24,7 @@ Enemy::Enemy() {
 
     // Sprite desde sprites.png en (112,48)
     QPixmap sheet(":/images/spites.png");
-    QPixmap sprite = sheet.copy(112, 48, 16, 16).scaled(TILE, TILE);
+    QPixmap sprite = sheet.copy(32, 240, 16, 16).scaled(TILE, TILE);
     setPixmap(sprite);
 
     // Elegir celda libre aleatoria
@@ -44,9 +45,27 @@ Enemy::Enemy() {
     timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &Enemy::mover);
     timer->start(150 + rand() % 200);
+
+    if (game->health->getHealth() <= 0) {
+        QMessageBox::information(nullptr, "Game Over", "¡Perdiste! Salud en 0.");
+        // opcional: cerrar juego
+        qApp->quit();
+    }
 }
 
 void Enemy::mover() {
+    //Chequeo de colisión con el jugador!
+    QList<QGraphicsItem*> choque = collidingItems();
+    for (auto *it : choque) {
+        if (typeid(*it) == typeid(Player)) {
+            // Al tocar al jugador, le quito vida y me destruyo
+            game->health->decrease();
+            scene()->removeItem(this);
+            delete this;
+            return;
+        }
+    }
+
     // Dirección aleatoria: 0=izq,1=der,2=arriba,3=abajo
     int dir = rand() % 4;
     int dx = 0, dy = 0;
@@ -59,6 +78,10 @@ void Enemy::mover() {
 
     qreal nx = x() + dx;
     qreal ny = y() + dy;
+
+    if (ny < 96)
+        return;
+
     QRectF area = game->scene->sceneRect();
 
     // Validar que la nueva posición quede dentro de los límites visibles

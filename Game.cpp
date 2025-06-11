@@ -1,4 +1,3 @@
-
 #include <Game.h>
 #include <QTimer>
 #include <QGraphicsTextItem>
@@ -13,13 +12,28 @@
 #include <QAudioOutput>
 #include <QUrl>
 #include <stdlib.h> //rand() numero muy grande
+#include <QApplication>
+#include <QMessageBox>
 
+extern Game *game;
 
-Game::Game (QWidget *parent){
+Game::Game (QWidget *parent): QGraphicsView(parent), enemyCount(0){
+    ::game = this;
     // Crear un nuevo escenario
     scene = new QGraphicsScene();
     scene -> setSceneRect(0, 0,816,672);
-    setBackgroundBrush(QBrush(QImage(":/images/fondo.jpg")));
+    // Carga el sprite-sheet
+    QPixmap sheet(":/images/spites.png");
+
+    // Corta el tile de 16×16 que quieres usar como fondo (ajusta coordenadas)
+    QPixmap bgTile = sheet.copy(0, 64, 16, 16);
+
+    // Escálalo al tamaño de tu escena o vista
+    QPixmap bgScaled = bgTile.scaled(816, 672);
+
+    // Ponlo como brush de fondo
+    setBackgroundBrush(QBrush(bgScaled));
+
     // 1) Spawnea 2 de golpe
     /*for (int i = 0; i < 2; ++i) {
         new Enemy();
@@ -109,13 +123,35 @@ Game::Game (QWidget *parent){
 
     //crear Health
     health =new Health();
-    health -> setPos(health-> x(), health->y()+ 25); //que aparezca en x=0 y en y un poquito mas abajo (25)
+    health -> setPos(health-> x()+ 175, health->y()); //que aparezca en x=0 y en y un poquito mas abajo (25)
     scene -> addItem(health);
 
-    //Generar enemigos de manera periodica
+    // --- dentro de Game::Game() ---
+
+    // 1) Crea el texto del timer
+    timerText = scene->addText("Time: 0", QFont("Arial", 28));
+    timerText->setDefaultTextColor(Qt::white);
+    timerText->setPos(375, 0);   // por ejemplo en la esquina superior izquierda
+    timerText->setZValue(1);
+
+    // 2) Crea un QTimer que dispare cada 1000 ms
+    timerClock = new QTimer(this);
+    connect(timerClock, &QTimer::timeout, this, [=]() {
+        secondsElapsed++;
+        int m = secondsElapsed / 60;
+        int s = secondsElapsed % 60;
+        timerText->setPlainText(QString("Time: %1:%2")
+                                    .arg(m, 2, 10, QChar('0'))
+                                    .arg(s, 2, 10, QChar('0')));
+    });
+
+    timerClock->start(1000);
+
+
+    /*//Generar enemigos de manera periodica
     QTimer *timer = new QTimer();
     QObject::connect(timer, SIGNAL(timeout()),player,SLOT(spawn()));
-    timer -> start(2000); // 2 seg
+    timer -> start(2000); // 2 seg*/
 
     //play background music
     QMediaPlayer *music = new QMediaPlayer();
@@ -129,15 +165,48 @@ Game::Game (QWidget *parent){
 
     //show();
 
+    // Crear 2 enemigos iniciales
+    for (int i = 0; i < 2; ++i) spawnEnemy();
+
+    // Timer para crear 1 enemigo cada 15 s
+    spawnTimer = new QTimer(this);
+    connect(spawnTimer, &QTimer::timeout, this, &Game::spawnEnemy);
+    spawnTimer->start(15000);
+
+    // 3) Cada 70 000 ms (1m10s) comprobamos victory
+    victoryTimer = new QTimer(this);
+    connect(victoryTimer, &QTimer::timeout, this, &Game::checkVictory);
+    victoryTimer->start(70000);
+
 }
 
-/*void Game::spawnEnemy() {
-    if (enemiesSpawned < MAX_ENEMIES) {
-        new Enemy();
-        ++enemiesSpawned;
-    } else {
-        // Llegaste al tope: detén el timer
-        enemySpawnTimer->stop();
+// Slot para generar un nuevo enemigo
+void Game::spawnEnemy() {
+    if (enemyCount >= MAX_ENEMIES) {
+        // Detener el timer si ya llegamos al máximo
+        spawnTimer->stop();
+        return;
     }
-}*/
+    // Construye y añade el enemigo (el constructor de Enemy se encarga de scene->addItem)
+    new Enemy();
+    ++enemyCount;
+}
+
+void Game::checkVictory() {
+    // Recorre la escena buscando cualquier Enemy
+    bool anyEnemy = false;
+    for (auto *it : scene->items()) {
+        if (dynamic_cast<Enemy*>(it)) {
+            anyEnemy = true;
+            break;
+        }
+    }
+    // Si no queda ninguno, victoria y fin del juego
+    if (!anyEnemy) {
+        victoryTimer->stop();
+        QMessageBox::information(nullptr, "¡Victoria!", "Has eliminado a todos!");
+        qApp->quit();
+    }
+    // si sí hay enemigos, no hacemos nada y el spawnTimer seguirá su curso
+}
 

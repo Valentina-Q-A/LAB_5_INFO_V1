@@ -9,7 +9,7 @@ Health::Health(QGraphicsItem * parent):QGraphicsTextItem(parent){
     //Dibujar el texto
     setPlainText(QString("Health: ")+QString::number(health)); //Score: 0
     setDefaultTextColor(Qt::red);
-    setFont(QFont("times",16));
+    setFont(QFont("times",28));
 }
 
 void Health::decrease()
